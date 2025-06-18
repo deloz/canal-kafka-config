@@ -1,0 +1,12 @@
+*.log
+.DS_Store
+.idea
+.venv
+/plugin
+/bin
+/lib
+/conf/spring
+/conf/metrics
+/conf/logback.xml
+/conf/example/h2.mv.db
+/conf/example/meta.dat
