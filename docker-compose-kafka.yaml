@@ -1,0 +1,65 @@
+# Docker Compose file for Kafka Service
+# 使用方法：docker compose -f docker-compose-kafka.yaml up -d
+
+services:
+  # Kafka Message Queue
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: keji-dsp-kafka
+    user: root
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft mode configuration (no Zookeeper needed)
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Listener configuration with SASL_PLAINTEXT
+      KAFKA_CFG_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      # Topic and replication settings
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+
+      # SASL configuration
+      KAFKA_CFG_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_CFG_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+
+      # JAAS Configuration
+      KAFKA_OPTS: -Djava.security.auth.login.config=/opt/bitnami/kafka/config/kafka_jaas.conf
+
+      # Client authentication
+      KAFKA_CLIENT_USERS: jc
+      KAFKA_CLIENT_PASSWORDS: jckafka
+
+      # Inter-broker authentication
+      KAFKA_INTER_BROKER_USER: jc
+      KAFKA_INTER_BROKER_PASSWORD: jckafka
+
+      # Allow SASL connections
+      ALLOW_PLAINTEXT_LISTENER: yes
+    volumes:
+      - ./data/kafka:/bitnami/kafka
+      - ./config/kafka/kafka_jaas.conf:/opt/bitnami/kafka/config/kafka_jaas.conf:ro
+      - ./config/kafka/client.properties:/opt/bitnami/kafka/config/client.properties:ro
+    networks:
+      - kafka-net
+    restart: always
+    healthcheck:
+      test: [ "CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--command-config", "/opt/bitnami/kafka/config/client.properties", "--list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  kafka-net:
+    driver: bridge
+    external: true
+    name: kafka-net
